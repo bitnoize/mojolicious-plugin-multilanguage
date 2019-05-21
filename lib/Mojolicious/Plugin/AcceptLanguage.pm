@@ -4,7 +4,7 @@ use Mojo::Base "Mojolicious::Plugin";
 use Mojo::Collection 'c';
 use HTTP::AcceptLanguage;
 
-our $VERSION = "1.01";
+our $VERSION = "1.02_001";
 $VERSION = eval $VERSION;
 
 sub register {
@@ -19,7 +19,7 @@ sub register {
       code    => 'en',
       name    => "English",
       native  => "English",
-      place   => 1,
+      index   => 1,
       sort    => 1,
       rtl     => 0
     },
@@ -28,7 +28,7 @@ sub register {
       code    => 'de',
       name    => "German",
       native  => "Deutsch",
-      place   => 2,
+      index   => 2,
       sort    => 3,
       rtl     => 0
     },
@@ -37,7 +37,7 @@ sub register {
       code    => 'fr',
       name    => "French",
       native  => "Français",
-      place   => 3,
+      index   => 3,
       sort    => 4,
       rtl     => 0
     },
@@ -46,7 +46,7 @@ sub register {
       code    => 'es',
       name    => "Spanish",
       native  => "Español",
-      place   => 4,
+      index   => 4,
       sort    => 5,
       rtl     => 0
     },
@@ -55,7 +55,7 @@ sub register {
       code    => 'ja',
       name    => "Japanese",
       native  => "日本",
-      place   => 5,
+      index   => 5,
       sort    => 0,
       rtl     => 0
     },
@@ -64,7 +64,7 @@ sub register {
       code    => 'pt',
       name    => "Portuguese",
       native  => "Português",
-      place   => 6,
+      index   => 6,
       sort    => 0,
       rtl     => 0
     },
@@ -73,7 +73,7 @@ sub register {
       code    => 'ru',
       name    => "Russian",
       native  => "Русский",
-      place   => 7,
+      index   => 7,
       sort    => 2,
       rtl     => 0
     },
@@ -82,7 +82,7 @@ sub register {
       code    => 'tr',
       name    => "Turkish",
       native  => "Türk",
-      place   => 8,
+      index   => 8,
       sort    => 6,
       rtl     => 0
     },
@@ -91,7 +91,7 @@ sub register {
       code    => 'zh',
       name    => "Chinese",
       native  => "中国",
-      place   => 9,
+      index   => 9,
       sort    => 7,
       rtl     => 0
     }
@@ -100,6 +100,8 @@ sub register {
   #
   # Helpers
   #
+
+  $app->helper(default_language => sub { shift->languages('en') });
 
   $app->helper(languages_active => sub {
     my ($c) = @_;
@@ -120,31 +122,26 @@ sub register {
     $app->languages_active->map(sub { $_->{code} })->flatten->to_array;
   });
 
-  #
-  # Hooks
-  #
-
-  $app->hook(before_routes => sub {
+  $app->helper(accept_language => sub {
     my ($c) = @_;
 
-    # Skip CORS preflight requests
-    return if $c->req->method eq 'OPTIONS';
+    return $c->default_language if $c->req->method eq 'OPTIONS';
 
-    my $header = $c->req->headers->accept_language;
+    my $header = $c->req->headers->accept_language || "";
     my $accept_language = HTTP::AcceptLanguage->new($header);
 
     my $code = $accept_language->match(@{$app->langs});
-    return $c->reply->not_acceptable unless $code;
+    return $c->default_language unless $code;
 
     my $lang = $app->language($code);
-    return $c->reply->not_acceptable unless $lang;
+    return $c->default_language unless $lang;
 
     $c->app->log->debug("Accept Language '$lang->{code}'");
 
     $c->res->headers->append("Vary" => "Accept-Language");
     $c->res->headers->content_language($code);
 
-    $c->stash(language => $lang);
+    return $lang;
   });
 }
 
