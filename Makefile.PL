@@ -6,10 +6,10 @@ use warnings;
 use ExtUtils::MakeMaker;
 
 WriteMakefile(
-  NAME          => "Mojolicious::Plugin::AcceptLanguage",
-  VERSION_FROM  => "lib/Mojolicious/Plugin/AcceptLanguage.pm",
+  NAME          => "Mojolicious::Plugin::MultiLanguage",
+  VERSION_FROM  => "lib/Mojolicious/Plugin/MultiLanguage.pm",
   ABSTRACT      => "Find available native language in your Mojolicious app",
-  LICENSE      => 'artistic_2',
+  LICENSE       => 'artistic_2',
   AUTHOR        => "Dmitry Krutikov <mitya\@whteam.net>",
   PREREQ_PM     => {
     'HTTP::AcceptLanguage'  => '0.02',
