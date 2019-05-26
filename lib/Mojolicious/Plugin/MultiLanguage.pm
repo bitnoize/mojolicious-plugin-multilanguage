@@ -4,15 +4,19 @@ use Mojo::Base "Mojolicious::Plugin";
 use Mojo::Collection 'c';
 use HTTP::AcceptLanguage;
 
-our $VERSION = "1.02_004";
+our $VERSION = "1.02_005";
 $VERSION = eval $VERSION;
 
 sub register {
   my ($self, $app, $conf) = @_;
 
+  $conf->{cookie}     ||= {path => "/"};
+  $conf->{languages}  ||= [qw/es fr de zh-tw/];
+  $conf->{image_url}  ||= "/images/lang/%s.png";
+
   state $langs_enabled = c(
-    'en', @{$conf->{languages} ||= [qw/es fr de zh-tw/]}
-  )->flatten->uniq;
+    'en', @{$conf->{languages}}
+  )->map(sub { lc $_ })->flatten->uniq;
 
   state $langs_available = c(
     # English
@@ -20,8 +24,8 @@ sub register {
       code    => 'en',
       name    => "English",
       native  => "English",
-      index1  => 1,
       index2  => 1,
+      index3  => 1,
       rtl     => 0
     },
 
@@ -30,8 +34,8 @@ sub register {
       code    => 'es',
       name    => "Spanish",
       native  => "Español",
-      index1  => 2,
       index2  => 2,
+      index3  => 2,
       rtl     => 0
     },
 
@@ -40,8 +44,8 @@ sub register {
       code    => 'de',
       name    => "German",
       native  => "Deutsch",
-      index1  => 3,
       index2  => 3,
+      index3  => 3,
       rtl     => 0
     },
 
@@ -50,18 +54,8 @@ sub register {
       code    => 'fr',
       name    => "French",
       native  => "Français",
-      index1  => 4,
       index2  => 4,
-      rtl     => 0
-    },
-
-    # Italian
-    {
-      code    => 'it',
-      name    => "Italian",
-      native  => "Italian",
-      index1  => 5,
-      index2  => 5,
+      index3  => 4,
       rtl     => 0
     },
 
@@ -70,68 +64,18 @@ sub register {
       code    => 'pt',
       name    => "Portuguese",
       native  => "Português",
-      index1  => 6,
+      index2  => 5,
+      index3  => 5,
+      rtl     => 0
+    },
+
+    # Italian
+    {
+      code    => 'it',
+      name    => "Italian",
+      native  => "Italian",
       index2  => 6,
-      rtl     => 0
-    },
-
-    # Dutch
-    {
-      code    => 'nl',
-      name    => "Danish",
-      native  => "Danish",
-      index1  => 7,
-      index2  => 7,
-      rtl     => 0
-    },
-
-    # Czech
-    {
-      code    => 'cs',
-      name    => "Czech",
-      native  => "Czech",
-      index1  => 8,
-      index2  => 8,
-      rtl     => 0
-    },
-
-    # Swedish
-    {
-      code    => 'sv',
-      name    => "Swedish",
-      native  => "Swedish",
-      index1  => 9,
-      index2  => 9,
-      rtl     => 0
-    },
-
-    # Norwegian
-    {
-      code    => 'no',
-      name    => "Norwegian",
-      native  => "Norwegian",
-      index1  => 10,
-      index2  => 10,
-      rtl     => 0
-    },
-
-    # Finnish
-    {
-      code    => 'fi',
-      name    => "Finnish",
-      native  => "Finnish",
-      index1  => 11,
-      index2  => 11,
-      rtl     => 0
-    },
-
-    # Danish
-    {
-      code    => 'da',
-      name    => "Danish",
-      native  => "Danish",
-      index1  => 12,
-      index2  => 12,
+      index3  => 6,
       rtl     => 0
     },
 
@@ -140,48 +84,8 @@ sub register {
       code    => 'pl',
       name    => "Polish",
       native  => "Polish",
-      index1  => 13,
-      index2  => 13,
-      rtl     => 0
-    },
-
-    # Croatian
-    {
-      code    => 'hr',
-      name    => "Croatian",
-      native  => "Croatian",
-      index1  => 14,
-      index2  => 14,
-      rtl     => 0
-    },
-
-    # Serbian
-    {
-      code    => 'sr',
-      name    => "Serbian",
-      native  => "Serbian",
-      index1  => 15,
-      index2  => 15,
-      rtl     => 0
-    },
-
-    # Bulgarian
-    {
-      code    => 'bg',
-      name    => "Bulgarian",
-      native  => "Bulgarian",
-      index1  => 16,
-      index2  => 16,
-      rtl     => 0
-    },
-
-    # Albanian
-    {
-      code    => 'sq',
-      name    => "Albanian",
-      native  => "Albanian",
-      index1  => 17,
-      index2  => 17,
+      index2  => 7,
+      index3  => 7,
       rtl     => 0
     },
 
@@ -190,8 +94,8 @@ sub register {
       code    => 'ru',
       name    => "Russian",
       native  => "Русский",
-      index1  => 18,
-      index2  => 18,
+      index2  => 8,
+      index3  => 8,
       rtl     => 0
     },
 
@@ -200,8 +104,8 @@ sub register {
       code    => 'uk',
       name    => "Ukrainian",
       native  => "Українська",
-      index1  => 19,
-      index2  => 19,
+      index2  => 9,
+      index3  => 9,
       rtl     => 0
     },
 
@@ -210,28 +114,8 @@ sub register {
       code    => 'be',
       name    => "Belarusian",
       native  => "Беларускі",
-      index1  => 20,
-      index2  => 20,
-      rtl     => 0
-    },
-
-    # Romanian
-    {
-      code    => 'ro',
-      name    => "Romanian",
-      native  => "Romanian",
-      index1  => 21,
-      index2  => 21,
-      rtl     => 0
-    },
-
-    # Turkish
-    {
-      code    => 'tr',
-      name    => "Turkish",
-      native  => "Türk",
-      index1  => 22,
-      index2  => 22,
+      index2  => 10,
+      index3  => 10,
       rtl     => 0
     },
 
@@ -240,8 +124,18 @@ sub register {
       code    => 'el',
       name    => "Greek",
       native  => "Greek",
-      index1  => 23,
-      index2  => 23,
+      index2  => 11,
+      index3  => 11,
+      rtl     => 0
+    },
+
+    # Turkish
+    {
+      code    => 'tr',
+      name    => "Turkish",
+      native  => "Türk",
+      index2  => 12,
+      index3  => 12,
       rtl     => 0
     },
 
@@ -250,8 +144,8 @@ sub register {
       code    => 'ar',
       name    => "Arabic",
       native  => "العربية",
-      index1  => 24,
-      index2  => 24,
+      index2  => 13,
+      index3  => 13,
       rtl     => 1
     },
 
@@ -260,8 +154,8 @@ sub register {
       code    => 'fa',
       name    => "Farsi",
       native  => "Farsi",
-      index1  => 25,
-      index2  => 25,
+      index2  => 14,
+      index3  => 14,
       rtl     => 1
     },
 
@@ -270,8 +164,8 @@ sub register {
       code    => 'hi',
       name    => "Hindi",
       native  => "Hindi",
-      index1  => 26,
-      index2  => 26,
+      index2  => 15,
+      index3  => 15,
       rtl     => 0
     },
 
@@ -280,8 +174,8 @@ sub register {
       code    => 'zh-cn',
       name    => "Chinese (Simplified)",
       native  => "中国",
-      index1  => 27,
-      index2  => 27,
+      index2  => 16,
+      index3  => 16,
       rtl     => 0
     },
 
@@ -289,9 +183,9 @@ sub register {
       code    => 'zh-tw',
       name    => "Chinese (Traditional)",
       native  => "中国",
-      index1  => 3,
-      index2  => 3,
-      rtl     => 28
+      index2  => 17,
+      index3  => 17,
+      rtl     => 0
     },
 
     # Japanese
@@ -299,8 +193,8 @@ sub register {
       code    => 'ja',
       name    => "Japanese",
       native  => "日本",
-      index1  => 30,
-      index2  => 30,
+      index2  => 18,
+      index3  => 18,
       rtl     => 0
     },
 
@@ -309,136 +203,167 @@ sub register {
       code    => 'ko',
       name    => "Korean",
       native  => "日本",
-      index1  => 31,
-      index2  => 31,
+      index2  => 19,
+      index3  => 19,
       rtl     => 0
     }
-  );
-
-  # Default language is hardcoded to english
-  $app->helper('lang.default' => sub { $langs_available->first });
-
-  # Try to find language via code, with exception
-  $app->helper('lang.lookup' => sub {
-    my ($c, $code) = @_;
-
-    $langs_available->grep(sub { $code eq $_->{code} })->first
-      or die "Language code '$code' not found\n";
-  });
-
-  # Active languages collection
-  $app->helper('lang.collection' => sub {
-    my ($c) = @_;
-
-    $langs_enabled->map(sub { $c->lang->lookup($_) });
-  });
-
-  # Try to verify language via code, safely
-  $app->helper('lang.verify' => sub {
-    my ($c, $code) = @_;
-
-    return 0 unless $code;
-    #return 0 unless $code and $code =~ /^[a-z-]{2,6}$/;
-    $c->lang->collection->grep(sub { $code eq $_->{code} })->size;
-  });
+  )->each(sub { $_->{index1} = 1 });
 
   # Active languages codes
   $app->helper('lang.codes' => sub {
     my ($c) = @_;
 
-    $c->lang->collection->map(sub { $_->{code} })->to_array;
+    $c->_lang_collection->map(sub { $_->{code} })->to_array;
+  });
+
+  # Ready list
+  $app->helper('lang.collection' => sub {
+    my ($c) = @_;
+
+    my $default = $c->_lang_default;
+
+    $c->_lang_collection->each(sub {
+      $_->{image} = sprintf $conf->{image_url}, $_->{code};
+      $_->{param} = $_->{code} ne $default->{code} ? $_->{code} : '';
+    });
   });
 
   # Deletect language for site via url, cookie and headers
   $app->helper('lang.detect_site' => sub {
     my ($c, $field) = @_;
 
-    my $default = $c->lang->default;
-    my $param = $c->param($field ||= 'language') || '';
+    $field ||= 'language';
 
-    return $default if $c->req->method eq 'OPTIONS';
+    my $default = $c->_lang_default;
+    my $param = $c->param($field) || '';
 
     my ($redirect, $detect);
 
     # URL param is not set
     if ($param eq '') {
       # Try parse language via cookie
-      my $cookie = $c->lang->parse_cookie;
+      my $cookie = $c->_lang_parse_cookie($field);
 
       # Cookie is empty
       unless ($cookie) {
-        # Try parse language via accept
-        my $accept = $c->lang->parse_accept;
+        # Try parse language via header
+        my $accept = $c->_lang_parse_accept;
 
-        # Accept is empty
+        # Header is empty, continue with default
         unless ($accept) {
           ($redirect, $detect) = (0, $default->{code})
         }
 
-        # Accept is set to default language
+        # Header is set to default, continue
         elsif ($accept eq $default->{code}) {
-          ($redirect, $detect) = (0, $default->{code})
+          ($redirect, $detect) = (0, $accept)
         }
 
+        # Anything else redirect to detected
         else {
           ($redirect, $detect) = (1, $accept)
         }
       }
 
-      # Cookie is set to default language
+      # Cookie is set to default, continue
       elsif ($cookie eq $default->{code}) {
         ($redirect, $detect) = (0, $cookie);
       }
 
-      # Any other language is ok
+      # Anything else redirect to detected
       else {
         ($redirect, $detect) = (1, $cookie);
       }
     }
 
+    # Param with default redirect to root
     elsif ($param eq $default->{code}) {
       ($redirect, $detect) = (1, '');
     }
 
-    # Any other language is ok
-    else {
+    # Last chance to check param
+    elsif ($c->_lang_verify($param)) {
       ($redirect, $detect) = (0, $param);
     }
 
+    # Any other param redirect to default
+    else {
+      ($redirect, $detect) = (1, $default->{code});
+    }
+
     if ($redirect) {
-      $c->redirect_to($field => $detect);
+      $c->redirect_to($field => lc $detect);
       return undef;
     }
 
-    my $lang = $c->lang->verify($detect)
-      ? $c->lang->lookup($detect) : $default;
+    my $lang = $c->_lang_lookup($detect);
 
     $c->app->log->debug("Detect language '$lang->{code}' via site");
-    $c->cookie($field => $lang->{code}, {path => "/"});
+    $c->cookie(language => $lang->{code}, $conf->{cookie});
 
-    $c->lang->finish($lang);
+    $c->_lang_finish($lang);
   });
 
   # Deletect language for api via headers only
   $app->helper('lang.detect_api' => sub {
     my ($c, $field) = @_;
 
-    my $default = $c->lang->default;
-    my $detect = $c->lang->parse_accept;
+    my $default = $c->_lang_default;
 
-    my $lang = $c->lang->verify($detect)
-      ? $c->lang->lookup($detect) : $default;
+    # Skip CORS requests with default language
+    return $default if $c->req->method eq 'OPTIONS';
 
-    $c->app->log->debug("Detect language '$lang->{code}' via api");
+    my $detect = $c->_lang_parse_accept;
 
-    $c->lang->finish($lang);
+    my $lang = $c->_lang_verify($detect)
+      ? $c->_lang_lookup($detect) : $default;
+
+    $c->app->log->debug("Detect language '$lang->{code}' via API");
+
+    $c->_lang_finish($lang);
   });
 
-  # Store language data
-  $app->helper('lang.finish' => sub {
-    my ($c, $lang) = @_;
+  $app->helper(_lang_default => sub { $langs_available->first });
 
-    die "Bad language on finish" unless $lang and ref $lang;
+  $app->helper(_lang_lookup => sub {
+    my ($c, $code) = @_;
+
+    $langs_available->grep(sub { lc $code eq $_->{code} })->first
+      or die "Language code '$code' does not exists\n";
+  });
+
+  $app->helper(_lang_collection => sub {
+    my ($c) = @_;
+
+    $langs_enabled->map(sub { $c->_lang_lookup($_) });
+  });
+
+  $app->helper(_lang_verify => sub {
+    my ($c, $code) = @_;
+
+    return 0 unless $code and $code =~ /^[a-z]{2}(-[a-z]{2})?$/i;
+    $c->_lang_collection->grep(sub { lc $code eq $_->{code} })->size;
+  });
+
+  $app->helper(_lang_parse_cookie => sub {
+    my ($c, $field) = @_;
+
+    my $code = $c->cookie($field);
+    $c->_lang_verify($code) ? lc $code : '';
+  });
+
+  $app->helper(_lang_parse_accept => sub {
+    my ($c) = @_;
+
+    my $header = $c->req->headers->accept_language;
+    my $accept_language = HTTP::AcceptLanguage->new($header);
+
+    my $code = $accept_language->match(@{$c->lang->codes});
+    $c->_lang_verify($code) ? lc $code : '';
+  });
+
+  $app->helper(_lang_finish => sub {
+    my ($c, $lang) = @_;
 
     $c->stash(lang => $lang);
 
@@ -448,50 +373,7 @@ sub register {
     return $lang;
   });
 
-  $app->helper('lang.parse_cookie' => sub {
-    my ($c) = @_;
-
-    my $code = $c->cookie('language');
-    $c->lang->verify($code) ? $code : '';
-  });
-
-  $app->helper('lang.parse_accept' => sub {
-    my ($c) = @_;
-
-    my $header = $c->req->headers->accept_language;
-    my $accept_language = HTTP::AcceptLanguage->new($header);
-
-    my $code = $accept_language->match(@{$c->lang->codes});
-    $c->lang->verify($code) ? $code : '';
-  });
-
   $app->routes->add_type(langs => $app->lang->codes);
 }
 
 1;
-
-__END__
-
-  $app->helper(accept_language => sub {
-    my ($c) = @_;
-
-    return $c->default_language if $c->req->method eq 'OPTIONS';
-
-    my $header = $c->req->headers->accept_language || "";
-    my $accept_language = HTTP::AcceptLanguage->new($header);
-
-    my $code = $accept_language->match(@{$app->langs});
-    return $c->default_language unless $code;
-
-    my $lang = $app->language($code);
-    return $c->default_language unless $lang;
-
-    $c->app->log->debug("Accept Language '$lang->{code}'");
-
-    $c->res->headers->append("Vary" => "Accept-Language");
-    $c->res->headers->content_language($code);
-
-    return $lang;
-  });
-
-
