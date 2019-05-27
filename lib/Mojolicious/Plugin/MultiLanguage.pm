@@ -210,21 +210,23 @@ sub register {
   )->each(sub { $_->{index1} = 1 });
 
   # Active languages codes
-  $app->helper('lang.codes' => sub {
+  $app->helper(lang_codes => sub {
     my ($c) = @_;
 
     $c->_lang_collection->map(sub { $_->{code} })->to_array;
   });
 
-  # Ready list
-  $app->helper('lang.collection' => sub {
+  # Complete language collection
+  $app->helper(lang_collection => sub {
     my ($c) = @_;
 
     my $default = $c->_lang_default;
+    my $lang = $c->stash('lang') || $default;
 
     $c->_lang_collection->each(sub {
-      $_->{image} = sprintf $conf->{image_url}, $_->{code};
-      $_->{param} = $_->{code} ne $default->{code} ? $_->{code} : '';
+      $_->{select}  = $lang->{code} eq $_->{code} ? 1 : 0;
+      $_->{image}   = sprintf $conf->{image_url}, $_->{code};
+      $_->{param}   = $_->{code} ne $default->{code} ? $_->{code} : '';
     });
   });
 
@@ -358,7 +360,7 @@ sub register {
     my $header = $c->req->headers->accept_language;
     my $accept_language = HTTP::AcceptLanguage->new($header);
 
-    my $code = $accept_language->match(@{$c->lang->codes});
+    my $code = $accept_language->match(@{$c->lang_codes});
     $c->_lang_verify($code) ? lc $code : '';
   });
 
@@ -373,7 +375,7 @@ sub register {
     return $lang;
   });
 
-  $app->routes->add_type(langs => $app->lang->codes);
+  $app->routes->add_type(langs => $app->lang_codes);
 }
 
 1;
