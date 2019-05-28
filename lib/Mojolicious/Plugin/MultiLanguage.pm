@@ -4,12 +4,13 @@ use Mojo::Base "Mojolicious::Plugin";
 use Mojo::Collection 'c';
 use HTTP::AcceptLanguage;
 
-our $VERSION = "1.02_005";
+our $VERSION = "1.02_006";
 $VERSION = eval $VERSION;
 
 sub register {
   my ($self, $app, $conf) = @_;
 
+  $conf->{api_base}   ||= ["/api"];
   $conf->{cookie}     ||= {path => "/"};
   $conf->{languages}  ||= [qw/es fr de zh-tw/];
   $conf->{image_url}  ||= "/images/lang/%s.png";
@@ -230,85 +231,115 @@ sub register {
     });
   });
 
-  # Deletect language for site via url, cookie and headers
-  $app->helper('lang.detect_site' => sub {
-    my ($c, $field) = @_;
+  $app->hook(before_routes => sub {
+    my ($c) = @_;
 
-    $field ||= 'language';
+    my $path = $c->req->url->path;
+    return if $c->res->code;
+
+    warn "PATH: ", $path->to_string;
+    my $api = grep { $path->contains($_) } @{$conf->{api_base}};
+    my $lang = $api ? $c->language_api : $c->language_site;
+
+    $c->stash(lang => $lang);
+  });
+
+  $app->hook(after_routes => sub {
+    my ($c) = @_;
+
+    my $lang = $c->stash('lang');
+
+    $c->res->headers->append("Vary" => "Accept-Language");
+    $c->res->headers->content_language($lang->{code});
+  });
+
+  # Deletect language for site via url, cookie and headers
+  $app->helper(language_site => sub {
+    my ($c) = @_;
+
+    my $path = $c->req->url->path;
+    my $part = $path->parts->[0] || '';
 
     my $default = $c->_lang_default;
-    my $param = $c->param($field) || '';
 
-    my ($redirect, $detect);
+    my $process = (
+      extract   => 0,
+      detect    => $default->{code},
+      redirect  => 0,
+      location  => "/"
+    );
 
-    # URL param is not set
-    if ($param eq '') {
-      # Try parse language via cookie
-      my $cookie = $c->_lang_parse_cookie($field);
+    #my ($extract, $detect, $redirect, $location) = (0, $default->{code}, 0, '');
 
-      # Cookie is empty
+    if ($part eq $default->{code}) {
+      warn "Param with default redirect to root\n";
+      @process[0, 1, 2, 3] = (1, $part, 1, $path);
+      #@process{qw/extract detect/}    = (1, $part);
+      #@process{qw/redirect location/} = (1, $path);
+    }
+
+    elsif ($c->_lang_verify($part)) {
+      warn "Last chance to check param\n";
+      @process[0, 1, 2, 3] = (1, $part, 0, $path);
+      #@process{qw/extract detect/}    = (1, $part);
+      #@process{qw/redirect location/} = (0, $path);
+    }
+
+    else {
+      warn "None found, continue with default: $path\n";
+      my $cookie = $c->_lang_parse_cookie;
+
       unless ($cookie) {
-        # Try parse language via header
         my $accept = $c->_lang_parse_accept;
 
-        # Header is empty, continue with default
         unless ($accept) {
-          ($redirect, $detect) = (0, $default->{code})
+          warn "Language detect via headers: empty, use default\n";
         }
 
-        # Header is set to default, continue
         elsif ($accept eq $default->{code}) {
-          ($redirect, $detect) = (0, $accept)
+          warn "Language detect via headers: set to default\n";
+          @process{qw/extract detect/}    = (0, $accept);
+          ($redirect, $detect) = (0, $accept);
         }
 
-        # Anything else redirect to detected
         else {
-          ($redirect, $detect) = (1, $accept)
+          warn "Language detected via header, need redirect\n";
+          ($redirect, $detect) = (1, $accept);
         }
       }
 
-      # Cookie is set to default, continue
       elsif ($cookie eq $default->{code}) {
+        warn "Language detected via cookie: set to default\n";
         ($redirect, $detect) = (0, $cookie);
       }
 
-      # Anything else redirect to detected
       else {
+        warn "Language detected via cookie, need redirect\n";
         ($redirect, $detect) = (1, $cookie);
       }
     }
 
-    # Param with default redirect to root
-    elsif ($param eq $default->{code}) {
-      ($redirect, $detect) = (1, '');
+    if ($process[0]) {
+      shift @{$path->parts};
+      $path->trailing_slash(0);
     }
 
-    # Last chance to check param
-    elsif ($c->_lang_verify($param)) {
-      ($redirect, $detect) = (0, $param);
-    }
-
-    # Any other param redirect to default
-    else {
-      ($redirect, $detect) = (1, $default->{code});
-    }
-
-    if ($redirect) {
-      $c->redirect_to($field => lc $detect);
+    if ($result[2]) {
+      $c->redirect_to("/$process[3]");
       return undef;
     }
 
-    my $lang = $c->_lang_lookup($detect);
+    my $lang = $c->_lang_lookup($process[1]);
 
     $c->app->log->debug("Detect language '$lang->{code}' via site");
     $c->cookie(language => $lang->{code}, $conf->{cookie});
 
-    $c->_lang_finish($lang);
+    return $lang;
   });
 
   # Deletect language for api via headers only
-  $app->helper('lang.detect_api' => sub {
-    my ($c, $field) = @_;
+  $app->helper(language_api => sub {
+    my ($c) = @_;
 
     my $default = $c->_lang_default;
 
@@ -322,7 +353,7 @@ sub register {
 
     $c->app->log->debug("Detect language '$lang->{code}' via API");
 
-    $c->_lang_finish($lang);
+    return $lang;
   });
 
   $app->helper(_lang_default => sub { $langs_available->first });
@@ -343,15 +374,15 @@ sub register {
   $app->helper(_lang_verify => sub {
     my ($c, $code) = @_;
 
-    return 0 unless $code and $code =~ /^[a-z]{2}(-[a-z]{2})?$/i;
-    $c->_lang_collection->grep(sub { lc $code eq $_->{code} })->size;
+    return 0 unless $code and $code =~ /^[a-z]{2}(-[a-z]{2})?$/;
+    $c->_lang_collection->grep(sub { $code eq $_->{code} })->size;
   });
 
   $app->helper(_lang_parse_cookie => sub {
-    my ($c, $field) = @_;
+    my ($c) = @_;
 
-    my $code = $c->cookie($field);
-    $c->_lang_verify($code) ? lc $code : '';
+    my $code = $c->cookie('language');
+    $c->_lang_verify($code) ? $code : '';
   });
 
   $app->helper(_lang_parse_accept => sub {
@@ -361,21 +392,60 @@ sub register {
     my $accept_language = HTTP::AcceptLanguage->new($header);
 
     my $code = $accept_language->match(@{$c->lang_codes});
-    $c->_lang_verify($code) ? lc $code : '';
+    $c->_lang_verify($code) ? $code : '';
   });
 
-  $app->helper(_lang_finish => sub {
-    my ($c, $lang) = @_;
+# $app->helper(_lang_finish => sub {
+#   my ($c, $lang) = @_;
+#
+#   $c->stash(lang => $lang);
+#
+#   $c->res->headers->append("Vary" => "Accept-Language");
+#   $c->res->headers->content_language($lang->{code});
+#
+#   return $lang;
+# });
 
-    $c->stash(lang => $lang);
+  my $mojo_url_for = *Mojolicious::Controller::url_for{CODE};
 
-    $c->res->headers->append("Vary" => "Accept-Language");
-    $c->res->headers->content_language($lang->{code});
+  my $lang_url_for = sub {
+    my $c = shift;
 
-    return $lang;
-  });
+    my $url = $c->$mojo_url_for(@_);
+    return $url if $url->is_abs;
 
-  $app->routes->add_type(langs => $app->lang_codes);
+    # Discard target if present
+    shift if (@_ % 2 && !ref $_[0]) || (@_ > 1 && ref $_[-1]);
+
+    # Unveil params
+    my %params = @_ == 1 ? %{$_[0]} : @_;
+
+    my $lang = $c->stash('lang');
+
+    my $code = $params{language} || $lang->{code};
+
+    return $url unless $code;
+
+    my $path = $url->path || [];
+
+    unless ($path->[0]) {
+      $path->parts([$code])
+    }
+
+    else {
+      unshift @{$path->parts}, $code
+        unless $c->lang_collection->grep(sub { $path->contains("/$_->{code}") })->size;
+    }
+
+    return $url;
+  };
+
+  {
+    no strict 'refs';
+    no warnings 'redefine';
+
+    *Mojolicious::Controller::url_for = $lang_url_for;
+  }
 }
 
 1;
