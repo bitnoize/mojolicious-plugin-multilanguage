@@ -2,7 +2,7 @@ Source: libmojolicious-plugin-multilanguage-perl
 Section: perl
 Priority: optional
 Maintainer: Dmitry Krutikov <mitya@whteam.net>
-Build-Depends: debhelper (>= 10), perl,
+Build-Depends: debhelper (>= 10), perl (>= 5.24),
   libhttp-acceptlanguage-perl (>= 0.02),
   libmojolicious-perl (>= 8.12)
 Standards-Version: 4.3.0
