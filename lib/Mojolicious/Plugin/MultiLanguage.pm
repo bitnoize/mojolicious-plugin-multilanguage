@@ -4,7 +4,7 @@ use Mojo::Base "Mojolicious::Plugin";
 use Mojo::Collection 'c';
 use HTTP::AcceptLanguage;
 
-our $VERSION = "1.02_008";
+our $VERSION = "1.02_009";
 $VERSION = eval $VERSION;
 
 sub register {
@@ -225,8 +225,7 @@ sub register {
   $app->helper(languages => sub {
     my ($c) = @_;
 
-    my $default   = $c->_lang_default;
-    my $language  = $c->stash('language');
+    my $language = $c->stash('language');
 
     $c->_lang_collection->each(sub {
       $_->{active}  = $_->{code} eq $language->{code} ? 1 : 0;
@@ -234,12 +233,16 @@ sub register {
     });
   });
 
+  #
+  # Private helpers
+  #
+
   # Detect language for site via url, cookie or headers
   $app->helper(_lang_detect_site => sub {
     my ($c, $path) = @_;
 
     my $default = $c->_lang_default;
-    my $param  = $path->parts->[0] || '';
+    my $param = $path->parts->[0] || '';
 
     my @process = (0, $default->{code}, 0, "/");
 
@@ -298,7 +301,6 @@ sub register {
 
     my $language = $c->_lang_lookup($process[1]);
 
-    $app->log->debug("Set Cookie language to $language->{code}");
     $c->cookie(language => $language->{code}, $conf->{cookie});
 
     if ($process[2]) {
@@ -326,10 +328,6 @@ sub register {
 
     return $language;
   });
-
-  #
-  # Private helpers
-  #
 
   $app->helper(_lang_default => sub { $langs_available->first });
 
@@ -383,7 +381,7 @@ sub register {
     return unless my $language = $is_api
       ? $c->_lang_detect_api : $c->_lang_detect_site($path);
 
-    $c->stash(language => $language);
+    $c->stash(language => $language, english => $c->_lang_default);
     $app->log->debug("Detect language '$language->{code}'");
   });
 
