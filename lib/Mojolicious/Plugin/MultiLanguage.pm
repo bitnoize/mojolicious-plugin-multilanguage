@@ -4,7 +4,7 @@ use Mojo::Base "Mojolicious::Plugin";
 use Mojo::Collection 'c';
 use HTTP::AcceptLanguage;
 
-our $VERSION = "1.02_007";
+our $VERSION = "1.02_008";
 $VERSION = eval $VERSION;
 
 sub register {
@@ -324,8 +324,6 @@ sub register {
     my $language = $c->_lang_exists($detect)
       ? $c->_lang_lookup($detect) : $default;
 
-    $app->log->debug("Detect language '$language->{code}' via API");
-
     return $language;
   });
 
@@ -382,10 +380,11 @@ sub register {
 
     my $is_api = grep { $path->contains($_) } @{$conf->{api_under}};
 
-    my $language = $is_api
+    return unless my $language = $is_api
       ? $c->_lang_detect_api : $c->_lang_detect_site($path);
 
-    $c->stash(language => $language) if $language;
+    $c->stash(language => $language);
+    $app->log->debug("Detect language '$language->{code}'");
   });
 
   $app->hook(after_render => sub {
@@ -414,15 +413,16 @@ sub register {
 
     my %params = @_ == 1 ? %{$_[0]} : @_;
 
-    my $language = $c->stash('language');
+    return $url unless my $language = $c->stash('language');
     my $code = $params{language} || $language->{code};
 
-    return $url unless $code;
-
+    my $default = $c->_lang_default;
     my $path = $url->path || [];
 
+    return $url if $code eq $default->{code};
+
     unless ($path->[0]) {
-      $path->parts([$code])
+      $path->parts([$code]);
     }
 
     else {
