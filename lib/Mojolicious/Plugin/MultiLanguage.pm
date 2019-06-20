@@ -4,7 +4,7 @@ use Mojo::Base "Mojolicious::Plugin";
 use Mojo::Collection 'c';
 use HTTP::AcceptLanguage;
 
-our $VERSION = "1.02_009";
+our $VERSION = "1.02_010";
 $VERSION = eval $VERSION;
 
 sub register {
@@ -62,7 +62,7 @@ sub register {
 
     # Portuguese
     {
-      code    => 'pt',
+      code    => 'pt-br',
       name    => "Portuguese",
       native  => "Português",
       index2  => 5,
