@@ -4,15 +4,16 @@ use Mojo::Base "Mojolicious::Plugin";
 use Mojo::Collection 'c';
 use HTTP::AcceptLanguage;
 
-our $VERSION = "1.02_010";
+## no critic
+our $VERSION = "1.03_001";
 $VERSION = eval $VERSION;
+## use critic
 
 sub register {
   my ($self, $app, $conf) = @_;
 
   $conf->{cookie}     ||= {path => "/"};
   $conf->{languages}  ||= [qw/es fr de zh-tw/];
-  $conf->{image_url}  ||= "/images/lang/%s.png";
   $conf->{api_under}  ||= ["/api"];
 
   state $langs_enabled = c(
@@ -229,7 +230,6 @@ sub register {
 
     $c->_lang_collection->each(sub {
       $_->{active}  = $_->{code} eq $language->{code} ? 1 : 0;
-      $_->{image}   = sprintf $conf->{image_url}, $_->{code};
     });
   });
 

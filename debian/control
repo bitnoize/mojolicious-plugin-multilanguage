@@ -2,15 +2,15 @@ Source: libmojolicious-plugin-multilanguage-perl
 Section: perl
 Priority: optional
 Maintainer: Dmitry Krutikov <mitya@whteam.net>
-Build-Depends: debhelper (>= 10), perl (>= 5.24),
+Build-Depends: debhelper (>= 11), perl (>= 5.24),
   libhttp-acceptlanguage-perl (>= 0.02),
-  libmojolicious-perl (>= 8.12)
+  libmojolicious-perl (>= 8.22)
 Standards-Version: 4.3.0
-Homepage: https://bitbucket.org/whoerdev/mojolicious-plugin-multilanguage
+Homepage: https://github.com/bitnoize/mojolicious-plugin-multilanguage
 
 Package: libmojolicious-plugin-multilanguage-perl
 Architecture: all
 Depends: ${misc:Depends}, ${perl:Depends},
   libhttp-acceptlanguage-perl (>= 0.02),
-  libmojolicious-perl (>= 8.12)
+  libmojolicious-perl (>= 8.22)
 Description: Find available native language in your Mojolicious app
