@@ -5,7 +5,7 @@ use Mojo::Collection 'c';
 use HTTP::AcceptLanguage;
 
 ## no critic
-our $VERSION = "1.03_001";
+our $VERSION = "1.05_001";
 $VERSION = eval $VERSION;
 ## use critic
 
@@ -312,7 +312,7 @@ sub register {
     return $language;
   });
 
-  # Deletect language for api via headers only
+  # Detetect language for api via headers only
   $app->helper(_lang_detect_api => sub {
     my ($c) = @_;
 

@@ -4,6 +4,9 @@
 
 *~
 
+.old
+.bak
+
 log
 blib
 Makefile*
