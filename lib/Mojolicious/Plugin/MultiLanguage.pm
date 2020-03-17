@@ -5,7 +5,7 @@ use Mojo::Collection 'c';
 use HTTP::AcceptLanguage;
 
 ## no critic
-our $VERSION = "1.05_001";
+our $VERSION = "1.05_003";
 $VERSION = eval $VERSION;
 ## use critic
 
@@ -219,7 +219,7 @@ sub register {
   $app->helper(langs => sub {
     my ($c) = @_;
 
-    $c->_lang_collection->map(sub { $_->{code} })->to_array;
+    $c->_lang_collection->map(sub { $_->{code} });
   });
 
   # Complete language collection
@@ -229,7 +229,7 @@ sub register {
     my $language = $c->stash('language');
 
     $c->_lang_collection->each(sub {
-      $_->{active}  = $_->{code} eq $language->{code} ? 1 : 0;
+      $_->{active} = $_->{code} eq $language->{code} ? 1 : 0;
     });
   });
 
@@ -381,8 +381,10 @@ sub register {
     return unless my $language = $is_api
       ? $c->_lang_detect_api : $c->_lang_detect_site($path);
 
-    $c->stash(language => $language, english => $c->_lang_default);
     $app->log->debug("Detect language '$language->{code}'");
+
+    $c->stash(language => $language, english => $c->_lang_default);
+    $c->stash(languages => $c->languages->to_array);
   });
 
   $app->hook(after_render => sub {
@@ -411,8 +413,7 @@ sub register {
 
     my %params = @_ == 1 ? %{$_[0]} : @_;
 
-    return $url unless my $language = $c->stash('language');
-    my $code = $params{language} || $language->{code};
+    return $url unless my $code = $params{language};
 
     my $default = $c->_lang_default;
     my $path = $url->path || [];
@@ -425,7 +426,7 @@ sub register {
 
     else {
       my $exists = $c->_lang_collection->grep(sub {
-        $path->contains("/$_->{code}")
+        $path->contains(sprintf "/%s", $_->{code})
       })->size;
 
       unshift @{$path->parts}, $code unless $exists;

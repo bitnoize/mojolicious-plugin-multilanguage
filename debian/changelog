@@ -1,5 +1,5 @@
-libmojolicious-plugin-multilanguage-perl (1.03-1) unstable; urgency=low
+libmojolicious-plugin-multilanguage-perl (1.05-2) unstable; urgency=low
 
   * New release build
 
- -- Dmitry Krutikov <mitya@whteam.net>  Wed, 25 Sep 2019 00:00:00 +0000
+ -- Dmitry Krutikov <mitya@whteam.net>  Mon, 16 Mar 2019 00:00:00 +0000
