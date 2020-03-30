@@ -5,16 +5,16 @@ use Mojo::Collection 'c';
 use HTTP::AcceptLanguage;
 
 ## no critic
-our $VERSION = "1.05_003";
+our $VERSION = "1.05_005";
 $VERSION = eval $VERSION;
 ## use critic
 
 sub register {
   my ($self, $app, $conf) = @_;
 
-  $conf->{cookie}     ||= {path => "/"};
-  $conf->{languages}  ||= [qw/es fr de zh-tw/];
-  $conf->{api_under}  ||= ["/api"];
+  $conf->{cookie}     //= {path => "/"};
+  $conf->{languages}  //= [qw/es fr de zh-tw/];
+  $conf->{api_under}  //= ["/api"];
 
   state $langs_enabled = c(
     'en', @{$conf->{languages}}
@@ -242,12 +242,12 @@ sub register {
     my ($c, $path) = @_;
 
     my $default = $c->_lang_default;
-    my $param = $path->parts->[0] || '';
+    my $param = $path->parts->[0] // '';
 
     my @process = (0, $default->{code}, 0, "/");
 
     unless ($param) {
-      my $cookie = $c->cookie('language');
+      my $cookie = $c->cookie('lang');
 
       unless ($cookie) {
         my $accept = $c->_lang_accept_language;
@@ -300,14 +300,9 @@ sub register {
     }
 
     my $language = $c->_lang_lookup($process[1]);
+    $c->cookie(lang => $language->{code}, $conf->{cookie});
 
-    $c->cookie(language => $language->{code}, $conf->{cookie});
-
-    if ($process[2]) {
-      $c->redirect_to($process[3]);
-
-      return undef;
-    }
+    $c->redirect_to($process[3]) and return undef if $process[2];
 
     return $language;
   });
@@ -354,7 +349,7 @@ sub register {
   $app->helper(_lang_parse_cookie => sub {
     my ($c) = @_;
 
-    my $code = $c->cookie('language');
+    my $code = $c->cookie('lang');
     $c->_lang_exists($code) ? $code : '';
   });
 
@@ -413,10 +408,10 @@ sub register {
 
     my %params = @_ == 1 ? %{$_[0]} : @_;
 
-    return $url unless my $code = $params{language};
+    return $url unless my $code = $params{lang};
 
     my $default = $c->_lang_default;
-    my $path = $url->path || [];
+    my $path = $url->path // [];
 
     return $url if $code eq $default->{code};
 
