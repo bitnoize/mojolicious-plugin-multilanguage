@@ -5,7 +5,7 @@ use Mojo::Collection 'c';
 use HTTP::AcceptLanguage;
 
 ## no critic
-our $VERSION = "1.05_005";
+our $VERSION = "1.05_006";
 $VERSION = eval $VERSION;
 ## use critic
 
@@ -26,9 +26,9 @@ sub register {
       code    => 'en',
       name    => "English",
       native  => "English",
+      dir     => 'ltr',
       index2  => 1,
       index3  => 1,
-      rtl     => 0
     },
 
     # Spanish
@@ -36,9 +36,9 @@ sub register {
       code    => 'es',
       name    => "Spanish",
       native  => "Español",
+      dir     => 'ltr',
       index2  => 2,
       index3  => 2,
-      rtl     => 0
     },
 
     # German
@@ -46,9 +46,9 @@ sub register {
       code    => 'de',
       name    => "German",
       native  => "Deutsch",
+      dir     => 'ltr',
       index2  => 3,
       index3  => 3,
-      rtl     => 0
     },
 
     # French
@@ -56,9 +56,9 @@ sub register {
       code    => 'fr',
       name    => "French",
       native  => "Français",
+      dir     => 'ltr',
       index2  => 4,
       index3  => 4,
-      rtl     => 0
     },
 
     # Portuguese
@@ -66,9 +66,9 @@ sub register {
       code    => 'pt-br',
       name    => "Portuguese",
       native  => "Português",
+      dir     => 'ltr',
       index2  => 5,
       index3  => 5,
-      rtl     => 0
     },
 
     # Italian
@@ -76,9 +76,9 @@ sub register {
       code    => 'it',
       name    => "Italian",
       native  => "italiano",
+      dir     => 'ltr',
       index2  => 6,
       index3  => 6,
-      rtl     => 0
     },
 
     # Polish
@@ -86,9 +86,9 @@ sub register {
       code    => 'pl',
       name    => "Polish",
       native  => "Polskie",
+      dir     => 'ltr',
       index2  => 7,
       index3  => 7,
-      rtl     => 0
     },
 
     # Russian
@@ -96,9 +96,9 @@ sub register {
       code    => 'ru',
       name    => "Russian",
       native  => "Русский",
+      dir     => 'ltr',
       index2  => 8,
       index3  => 8,
-      rtl     => 0
     },
 
     # Ukrainian
@@ -106,9 +106,9 @@ sub register {
       code    => 'uk',
       name    => "Ukrainian",
       native  => "Українська",
+      dir     => 'ltr',
       index2  => 9,
       index3  => 9,
-      rtl     => 0
     },
 
     # Belarusian
@@ -116,9 +116,9 @@ sub register {
       code    => 'be',
       name    => "Belarusian",
       native  => "Беларускі",
+      dir     => 'ltr',
       index2  => 10,
       index3  => 10,
-      rtl     => 0
     },
 
     # Greek
@@ -126,9 +126,9 @@ sub register {
       code    => 'el',
       name    => "Greek",
       native  => "Ελληνικά",
+      dir     => 'ltr',
       index2  => 11,
       index3  => 11,
-      rtl     => 0
     },
 
     # Turkish
@@ -136,9 +136,9 @@ sub register {
       code    => 'tr',
       name    => "Turkish",
       native  => "Türk",
+      dir     => 'ltr',
       index2  => 12,
       index3  => 12,
-      rtl     => 0
     },
 
     # Arabic
@@ -146,9 +146,9 @@ sub register {
       code    => 'ar',
       name    => "Arabic",
       native  => "العربية",
+      dir     => 'rtl',
       index2  => 13,
       index3  => 13,
-      rtl     => 1
     },
 
     # Farsi
@@ -156,9 +156,9 @@ sub register {
       code    => 'fa',
       name    => "Farsi",
       native  => "हिंदी",
+      dir     => 'rtl',
       index2  => 14,
       index3  => 14,
-      rtl     => 1
     },
 
     # Hindi
@@ -166,9 +166,9 @@ sub register {
       code    => 'hi',
       name    => "Hindi",
       native  => "हिंदी",
+      dir     => 'ltr',
       index2  => 15,
       index3  => 15,
-      rtl     => 0
     },
 
     # Chinese
@@ -176,18 +176,18 @@ sub register {
       code    => 'zh-cn',
       name    => "Chinese (Simplified)",
       native  => "中国",
+      dir     => 'ltr',
       index2  => 16,
       index3  => 16,
-      rtl     => 0
     },
 
     {
       code    => 'zh-tw',
       name    => "Chinese (Traditional)",
       native  => "中国",
+      dir     => 'ltr',
       index2  => 17,
       index3  => 17,
-      rtl     => 0
     },
 
     # Japanese
@@ -195,9 +195,9 @@ sub register {
       code    => 'ja',
       name    => "Japanese",
       native  => "日本",
+      dir     => 'ltr',
       index2  => 18,
       index3  => 18,
-      rtl     => 0
     },
 
     # Korean
@@ -205,9 +205,9 @@ sub register {
       code    => 'ko',
       name    => "Korean",
       native  => "日本",
+      dir     => 'ltr',
       index2  => 19,
       index3  => 19,
-      rtl     => 0
     }
   )->each(sub { $_->{index1} = 1 });
 
