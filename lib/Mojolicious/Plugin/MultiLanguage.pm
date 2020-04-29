@@ -241,10 +241,11 @@ sub register {
   $app->helper(_lang_detect_site => sub {
     my ($c, $path) = @_;
 
+    $c->stash(route_lang => 1);
     my $default = $c->_lang_default;
     my $param = $path->parts->[0] // '';
 
-    my @process = (0, $default->{code}, 0, "/");
+    my @flags = (0, $default->{code}, 0, "/");
 
     unless ($param) {
       my $cookie = $c->cookie('lang');
@@ -257,11 +258,11 @@ sub register {
         }
 
         elsif ($accept eq $default->{code}) {
-          @process[1] = ($accept);
+          @flags[1] = ($accept);
         }
 
         elsif ($c->_lang_exists($accept)) {
-          @process[1, 2, 3] = ($accept, 1, "/$accept");
+          @flags[1, 2, 3] = ($accept, 1, "/$accept");
         }
 
         else {
@@ -270,11 +271,11 @@ sub register {
       }
 
       elsif ($cookie eq $default->{code}) {
-        @process[1] = ($cookie);
+        @flags[1] = ($cookie);
       }
 
       elsif ($c->_lang_exists($cookie)) {
-        @process[1, 2, 3] = ($cookie, 1, "/$cookie");
+        @flags[1, 2, 3] = ($cookie, 1, "/$cookie");
       }
 
       else {
@@ -283,26 +284,26 @@ sub register {
     }
 
     elsif ($param eq $default->{code}) {
-      @process[0, 1, 2, 3] = (1, $param, 1, $path);
+      @flags[0, 1, 2, 3] = (1, $param, 1, $path);
     }
 
     elsif ($c->_lang_exists($param)) {
-      @process[0, 1, 2, 3] = (1, $param, 0, $path);
+      @flags[0, 1, 2, 3] = (1, $param, 0, $path);
     }
 
     else {
       $app->log->debug("No language detected");
     }
 
-    if ($process[0]) {
+    if ($flags[0]) {
       shift @{$path->parts};
       $path->trailing_slash(0);
     }
 
-    my $language = $c->_lang_lookup($process[1]);
+    my $language = $c->_lang_lookup($flags[1]);
     $c->cookie(lang => $language->{code}, $conf->{cookie});
 
-    $c->redirect_to($process[3]) and return undef if $process[2];
+    $c->redirect_to($flags[3]) and return undef if $flags[2];
 
     return $language;
   });
@@ -311,6 +312,7 @@ sub register {
   $app->helper(_lang_detect_api => sub {
     my ($c) = @_;
 
+    $c->stash(route_lang => 0);
     my $default = $c->_lang_default;
 
     # Skip CORS requests with default language
@@ -370,7 +372,6 @@ sub register {
     return if $c->res->code;
 
     my $path = $c->req->url->path;
-
     my $is_api = grep { $path->contains($_) } @{$conf->{api_under}};
 
     return unless my $language = $is_api
@@ -387,7 +388,7 @@ sub register {
 
     return unless my $language = $c->stash('language');
 
-    $c->res->headers->append("Vary" => "Accept-Language");
+    $c->res->headers->append('Vary' => "Accept-Language");
     $c->res->headers->content_language($language->{code});
   });
 
@@ -401,28 +402,28 @@ sub register {
     my $c = shift;
 
     my $url = $c->$mojo_url_for(@_);
-
     return $url if $url->is_abs;
-
-    shift if (@_ % 2 && !ref $_[0]) || (@_ > 1 && ref $_[-1]);
+    return $url unless $c->stash('route_lang');
 
     my %params = @_ == 1 ? %{$_[0]} : @_;
 
-    return $url unless my $code = $params{lang};
+    my $languages = $c->stash('languages');
+    my $language  = $c->stash('language');
+    my $english   = $c->stash('english');
 
-    my $default = $c->_lang_default;
+    my $code = $params{lang} // $language->{code};
+    return $url if $code eq $english->{code};
+
     my $path = $url->path // [];
-
-    return $url if $code eq $default->{code};
 
     unless ($path->[0]) {
       $path->parts([$code]);
     }
 
     else {
-      my $exists = $c->_lang_collection->grep(sub {
+      my $exists = grep {
         $path->contains(sprintf "/%s", $_->{code})
-      })->size;
+      } @$languages;
 
       unshift @{$path->parts}, $code unless $exists;
     }
