@@ -399,13 +399,14 @@ sub register {
   my $mojo_url_for = *Mojolicious::Controller::url_for{CODE};
 
   my $lang_url_for = sub {
-    my $c = shift;
+    my ($c, @args) = @_;
 
-    my $url = $c->$mojo_url_for(@_);
-    return $url if $url->is_abs;
+    my $url = $c->$mojo_url_for(@args);
     return $url unless $c->stash('route_lang');
+    return $url if $url->is_abs;
 
-    my %params = @_ == 1 ? %{$_[0]} : @_;
+    shift @args if @args % 2 && !ref $args[0] or @args > 1 && ref $args[-1];
+    my %params = @args == 1 ? %{$args[0]} : @_;
 
     my $languages = $c->stash('languages');
     my $language  = $c->stash('language');
