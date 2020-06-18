@@ -5,7 +5,7 @@ use Mojo::Collection 'c';
 use HTTP::AcceptLanguage;
 
 ## no critic
-our $VERSION = "1.06_001";
+our $VERSION = "1.06_002";
 $VERSION = eval $VERSION;
 ## use critic
 
@@ -14,7 +14,7 @@ sub register {
 
   $conf->{cookie}     //= {path => "/"};
   $conf->{languages}  //= [qw/es fr de zh-tw/];
-  $conf->{api_under}  //= ["/api", "/v1", "/v2", "/v3", "/v4", "/v5"];
+  $conf->{api_prefix} //= ["/api"];
 
   state $langs_enabled = c(
     'en', @{$conf->{languages}}
@@ -333,13 +333,13 @@ sub register {
     return $language;
   };
 
-  $app->hook(before_routes => sub {
+  $app->hook(before_dispatch => sub {
     my ($c) = @_;
 
     return if $c->res->code;
 
     my $path = $c->req->url->path;
-    my $is_api = grep { $path->contains($_) } @{$conf->{api_under}};
+    my $is_api = grep { $path->contains($_) } @{$conf->{api_prefix}};
 
     return unless my $language = $is_api
       ? $detect_api->($c, $path) : $detect_site->($c, $path);
@@ -375,6 +375,7 @@ sub register {
     my ($c, @args) = @_;
 
     my $url = $c->$mojo_url_for(@args);
+
     return $url if $url->is_abs;
 
     shift @args if @args % 2 && !ref $args[0] or @args > 1 && ref $args[-1];
@@ -411,75 +412,3 @@ sub register {
 }
 
 1;
-
-__END__
-
-
-
-
-
-  $app->hook(before_routes => sub {
-    my ($c) = @_;
-
-    return if $c->res->code;
-
-    my $path = $c->req->url->path;
-    my $is_api = grep { $path->contains($_) } @{$conf->{api_under}};
-
-    return unless my $language = $is_api
-      ? $detect_api->($c) : $detect_site->($c, $path);
-
-    $app->log->debug("Detect language '$language->{code}'");
-
-    $c->stash(language => $language);
-  });
-
-  $app->hook(after_render => sub {
-    my ($c) = @_;
-
-    return unless my $language = $c->stash('language');
-
-    $c->res->headers->append('Vary' => "Accept-Language");
-    $c->res->headers->content_language($language->{code});
-  });
-
-
-
-
-
-  $app->hook(around_dispatch => sub {
-    my ($next, $c) = @_;
-
-    # Only endpoints intrested
-    #return $next->() unless $last;
-
-    warn "AAAA";
-    # Do not process preflight requests
-    return $next->() if $c->req->method eq 'OPTIONS';
-
-    my %opts = $route_opts->($c->match->endpoint);
-
-    my $opts_detect = $opts{detect} //= 'none';
-    return $next->() if $opts_detect eq 'none';
-
-    my %dispatch = (
-      'site'  => $detect_site,
-      'api'   => $detect_api
-    );
-
-    my $dispatch = $dispatch{$opts_detect};
-
-    die "Wrong route lang_detect '$opts_detect'"
-      unless defined $dispatch;
-
-    return unless my $language = $dispatch->($c);
-    $c->stash(language => $language);
-
-    my $h = $c->res->headers;
-    $h->append('Vary' => 'Accept-Language');
-    $c->res->headers->content_language($language->{code});
-
-    return $next->();
-  });
-
-
