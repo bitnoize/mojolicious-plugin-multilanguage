@@ -5,7 +5,7 @@ use Mojo::Collection 'c';
 use HTTP::AcceptLanguage;
 
 ## no critic
-our $VERSION = "1.05_006";
+our $VERSION = "1.06_001";
 $VERSION = eval $VERSION;
 ## use critic
 
@@ -14,7 +14,7 @@ sub register {
 
   $conf->{cookie}     //= {path => "/"};
   $conf->{languages}  //= [qw/es fr de zh-tw/];
-  $conf->{api_under}  //= ["/api"];
+  $conf->{api_under}  //= ["/api", "/v1", "/v2", "/v3", "/v4", "/v5"];
 
   state $langs_enabled = c(
     'en', @{$conf->{languages}}
@@ -111,11 +111,11 @@ sub register {
       index3  => 9,
     },
 
-    # Belarusian
+    # Finnish
     {
-      code    => 'be',
-      name    => "Belarusian",
-      native  => "Беларускі",
+      code    => 'fi',
+      name    => "Finnish",
+      native  => "Finnish",
       dir     => 'ltr',
       index2  => 10,
       index3  => 10,
@@ -211,84 +211,91 @@ sub register {
     }
   )->each(sub { $_->{index1} = 1 });
 
-  #
-  # Helpers
-  #
+  # Default language
+  my $english = $langs_available->first;
+
+  # Lookup language
+  my $lang_lookup = sub {
+    my ($code) = @_;
+
+    $langs_available->grep(sub { lc $code eq $_->{code} })->first
+      or die "Language code '$code' does not exists!";
+  };
+
+  # Enabled languages
+  $app->attr(languages => sub {
+    $langs_enabled->map(sub { $lang_lookup->($_) });
+  });
 
   # Active languages codes
-  $app->helper(langs => sub {
-    my ($c) = @_;
-
-    $c->_lang_collection->map(sub { $_->{code} });
+  $app->attr(langs => sub {
+    $app->languages->map( sub { $_->{code} });
   });
 
-  # Complete language collection
-  $app->helper(languages => sub {
+  my $lang_exists = sub {
+    my ($code) = @_;
+
+    return 0 unless $code and $code =~ /^[a-z]{2}(-[a-z]{2})?$/;
+    $app->languages->grep(sub { $code eq $_->{code} })->size;
+  };
+
+  # Parse Accept-Language header
+  $app->helper(accept_language => sub {
     my ($c) = @_;
 
-    my $language = $c->stash('language');
-
-    $c->_lang_collection->each(sub {
-      $_->{active} = $_->{code} eq $language->{code} ? 1 : 0;
-    });
+    my $header = $c->req->headers->accept_language;
+    HTTP::AcceptLanguage->new($header)->match(@{$app->langs});
   });
-
-  #
-  # Private helpers
-  #
 
   # Detect language for site via url, cookie or headers
-  $app->helper(_lang_detect_site => sub {
+  my $detect_site = sub {
     my ($c, $path) = @_;
 
-    $c->stash(route_lang => 1);
-    my $default = $c->_lang_default;
-    my $param = $path->parts->[0] // '';
+    my $part  = $path->parts->[0] // '';
+    my @flags = (0, $english->{code}, 0, "/");
 
-    my @flags = (0, $default->{code}, 0, "/");
-
-    unless ($param) {
+    unless ($part) {
       my $cookie = $c->cookie('lang');
 
       unless ($cookie) {
-        my $accept = $c->_lang_accept_language;
+        my $accept = $c->accept_language;
 
         unless ($accept) {
-          $app->log->debug("Unknown Accept-Language");
+          $app->log->debug("Unknown accept-language");
         }
 
-        elsif ($accept eq $default->{code}) {
+        elsif ($accept eq $english->{code}) {
           @flags[1] = ($accept);
         }
 
-        elsif ($c->_lang_exists($accept)) {
+        elsif ($lang_exists->($accept)) {
           @flags[1, 2, 3] = ($accept, 1, "/$accept");
         }
 
         else {
-          $app->log->debug("Bad Accept-Language: $accept");
+          $app->log->warn("Wrong accept-language: '$accept'");
         }
       }
 
-      elsif ($cookie eq $default->{code}) {
+      elsif ($cookie eq $english->{code}) {
         @flags[1] = ($cookie);
       }
 
-      elsif ($c->_lang_exists($cookie)) {
+      elsif ($lang_exists->($cookie)) {
         @flags[1, 2, 3] = ($cookie, 1, "/$cookie");
       }
 
       else {
-        $app->log->debug("Bad Cookie language: $cookie");
+        $app->log->warn("Wrong cookie-language: '$cookie'");
       }
     }
 
-    elsif ($param eq $default->{code}) {
-      @flags[0, 1, 2, 3] = (1, $param, 1, $path);
+    elsif ($part eq $english->{code}) {
+      @flags[0, 1, 2, 3] = (1, $part, 1, $path);
     }
 
-    elsif ($c->_lang_exists($param)) {
-      @flags[0, 1, 2, 3] = (1, $param, 0, $path);
+    elsif ($lang_exists->($part)) {
+      @flags[0, 1, 2, 3] = (1, $part, 0, $path);
     }
 
     else {
@@ -300,71 +307,31 @@ sub register {
       $path->trailing_slash(0);
     }
 
-    my $language = $c->_lang_lookup($flags[1]);
+    my $language = $lang_lookup->($flags[1]);
     $c->cookie(lang => $language->{code}, $conf->{cookie});
 
     $c->redirect_to($flags[3]) and return undef if $flags[2];
 
+    $app->log->debug("Detect site language '$language->{code}'");
+
     return $language;
-  });
+  };
 
   # Detetect language for api via headers only
-  $app->helper(_lang_detect_api => sub {
-    my ($c) = @_;
+  my $detect_api = sub {
+    my ($c, $path) = @_;
 
-    $c->stash(route_lang => 0);
-    my $default = $c->_lang_default;
+    return $english if $c->req->method eq 'OPTIONS';
 
-    # Skip CORS requests with default language
-    return $default if $c->req->method eq 'OPTIONS';
+    my $accept = $c->accept_language;
 
-    my $detect = $c->_lang_accept_language;
+    my $language = $lang_exists->($accept)
+      ? $lang_lookup->($accept) : $english;
 
-    my $language = $c->_lang_exists($detect)
-      ? $c->_lang_lookup($detect) : $default;
+    $app->log->debug("Detect API language '$language->{code}'");
 
     return $language;
-  });
-
-  $app->helper(_lang_default => sub { $langs_available->first });
-
-  $app->helper(_lang_lookup => sub {
-    my ($c, $code) = @_;
-
-    $langs_available->grep(sub { lc $code eq $_->{code} })->first
-      or die "Language code '$code' does not exists\n";
-  });
-
-  $app->helper(_lang_collection => sub {
-    my ($c) = @_;
-
-    $langs_enabled->map(sub { $c->_lang_lookup($_) });
-  });
-
-  $app->helper(_lang_exists => sub {
-    my ($c, $code) = @_;
-
-    return 0 unless $code and $code =~ /^[a-z]{2}(-[a-z]{2})?$/;
-    $c->_lang_collection->grep(sub { $code eq $_->{code} })->size;
-  });
-
-  $app->helper(_lang_parse_cookie => sub {
-    my ($c) = @_;
-
-    my $code = $c->cookie('lang');
-    $c->_lang_exists($code) ? $code : '';
-  });
-
-  $app->helper(_lang_accept_language => sub {
-    my ($c) = @_;
-
-    my $header = $c->req->headers->accept_language;
-    HTTP::AcceptLanguage->new($header)->match(@{$c->langs});
-  });
-
-  #
-  # Hooks
-  #
+  };
 
   $app->hook(before_routes => sub {
     my ($c) = @_;
@@ -375,12 +342,9 @@ sub register {
     my $is_api = grep { $path->contains($_) } @{$conf->{api_under}};
 
     return unless my $language = $is_api
-      ? $c->_lang_detect_api : $c->_lang_detect_site($path);
+      ? $detect_api->($c, $path) : $detect_site->($c, $path);
 
-    $app->log->debug("Detect language '$language->{code}'");
-
-    $c->stash(language => $language, english => $c->_lang_default);
-    $c->stash(languages => $c->languages->to_array);
+    $c->stash(language => $language);
   });
 
   $app->hook(after_render => sub {
@@ -388,31 +352,37 @@ sub register {
 
     return unless my $language = $c->stash('language');
 
-    $c->res->headers->append('Vary' => "Accept-Language");
-    $c->res->headers->content_language($language->{code});
+    my $h = $c->res->headers;
+    $h->append('Vary' => "Accept-Language");
+    $h->content_language($language->{code});
   });
 
-  #
-  # Reimplement 'url_for' helper
-  #
+  # Complete languages collection
+  $app->helper(languages => sub {
+    my ($c) = @_;
 
+    my $language = $c->stash('language') // $english;
+
+    $app->languages->each(sub {
+      $_->{active} = $_->{code} eq $language->{code} ? 1 : 0;
+    });
+  });
+
+  # Reimplement 'url_for' helper
   my $mojo_url_for = *Mojolicious::Controller::url_for{CODE};
 
   my $lang_url_for = sub {
     my ($c, @args) = @_;
 
     my $url = $c->$mojo_url_for(@args);
-    return $url unless $c->stash('route_lang');
     return $url if $url->is_abs;
 
     shift @args if @args % 2 && !ref $args[0] or @args > 1 && ref $args[-1];
     my %params = @args == 1 ? %{$args[0]} : @_;
 
-    my $languages = $c->stash('languages');
-    my $language  = $c->stash('language');
-    my $english   = $c->stash('english');
-
+    return $url unless my $language = $c->stash('language');
     my $code = $params{lang} // $language->{code};
+
     return $url if $code eq $english->{code};
 
     my $path = $url->path // [];
@@ -422,9 +392,9 @@ sub register {
     }
 
     else {
-      my $exists = grep {
+      my $exists = $c->languages->grep(sub {
         $path->contains(sprintf "/%s", $_->{code})
-      } @$languages;
+      })->size;
 
       unshift @{$path->parts}, $code unless $exists;
     }
@@ -441,3 +411,75 @@ sub register {
 }
 
 1;
+
+__END__
+
+
+
+
+
+  $app->hook(before_routes => sub {
+    my ($c) = @_;
+
+    return if $c->res->code;
+
+    my $path = $c->req->url->path;
+    my $is_api = grep { $path->contains($_) } @{$conf->{api_under}};
+
+    return unless my $language = $is_api
+      ? $detect_api->($c) : $detect_site->($c, $path);
+
+    $app->log->debug("Detect language '$language->{code}'");
+
+    $c->stash(language => $language);
+  });
+
+  $app->hook(after_render => sub {
+    my ($c) = @_;
+
+    return unless my $language = $c->stash('language');
+
+    $c->res->headers->append('Vary' => "Accept-Language");
+    $c->res->headers->content_language($language->{code});
+  });
+
+
+
+
+
+  $app->hook(around_dispatch => sub {
+    my ($next, $c) = @_;
+
+    # Only endpoints intrested
+    #return $next->() unless $last;
+
+    warn "AAAA";
+    # Do not process preflight requests
+    return $next->() if $c->req->method eq 'OPTIONS';
+
+    my %opts = $route_opts->($c->match->endpoint);
+
+    my $opts_detect = $opts{detect} //= 'none';
+    return $next->() if $opts_detect eq 'none';
+
+    my %dispatch = (
+      'site'  => $detect_site,
+      'api'   => $detect_api
+    );
+
+    my $dispatch = $dispatch{$opts_detect};
+
+    die "Wrong route lang_detect '$opts_detect'"
+      unless defined $dispatch;
+
+    return unless my $language = $dispatch->($c);
+    $c->stash(language => $language);
+
+    my $h = $c->res->headers;
+    $h->append('Vary' => 'Accept-Language');
+    $c->res->headers->content_language($language->{code});
+
+    return $next->();
+  });
+
+
