@@ -4,10 +4,8 @@ use Mojo::Base "Mojolicious::Plugin";
 use Mojo::Collection 'c';
 use HTTP::AcceptLanguage;
 
-## no critic
-our $VERSION = "1.06_002";
+our $VERSION = "0.01";
 $VERSION = eval $VERSION;
-## use critic
 
 sub register {
   my ($self, $app, $conf) = @_;
@@ -412,3 +410,46 @@ sub register {
 }
 
 1;
+
+__END__
+
+=encoding utf8
+
+=head1 NAME
+
+Mojolicious::Plugin::MultiLanguage - Find available native language
+
+=head1 SYNOPSIS
+
+=head1 DESCRIPTION
+
+=head1 SEE ALSO
+
+L<Mojolicious>.
+
+=head1 SUPPORT
+
+=head2 Bugs / Feature Requests
+
+Bugs should always be submitted via the GitHub bug tracker.
+
+L<https://github.com/bitnoize/mojolicious-plugin-multilanguage/issues>
+
+=head2 Source Code
+
+Feel free to fork the repository and submit pull requests.
+
+L<https://github.com/bitnoize/mojolicious-plugin-multilanguage>
+
+=head1 AUTHOR
+
+Dmitry Krutikov E<lt>monstar@cpan.orgE<gt>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright 2020 Dmitry Krutikov.
+
+You may distribute under the terms of either the GNU General Public
+License or the Artistic License, as specified in the README file.
+
+=cut

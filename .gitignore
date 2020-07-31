@@ -15,9 +15,5 @@ Makefile*
 MANIFEST*
 !MANIFEST.SKIP
 pm_to_blib
-
-debian/tmp
-debian/files
-debian/libmojolicious-plugin-multilanguage-perl*
-debian/debhelper-build-stamp
+debian
 
